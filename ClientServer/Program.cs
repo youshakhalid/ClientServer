@@ -10,6 +10,9 @@ ClientServer();
 
 static void ClientServer()
 {
+    string hostName = Dns.GetHostName();
+    string iPAddress = Dns.GetHostEntry(hostName).ToString();
+    int port = 42101;
     List<Users> listUser = new List<Users>
 {
     new Users {name="Yousha", designation="jr"},
@@ -18,37 +21,24 @@ static void ClientServer()
 
     try
     {
-        //Establishing and setting up Connection
-        IPHostEntry iPHostEntry = Dns.GetHostEntry(Dns.GetHostName());
-        IPAddress iPAddress = iPHostEntry.AddressList[0];
-        IPEndPoint localEndPoint = new IPEndPoint(iPAddress, 11111);
-
-        Socket sender = new Socket(iPAddress.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
-
-        try
+        using (TcpClient client = new TcpClient(hostName, port))
+        using (NetworkStream stream = client.GetStream())
         {
-            sender.Connect(localEndPoint);
-            Console.WriteLine($"Socket Connected to {sender.RemoteEndPoint.ToString()}");
+ 
+            foreach (var user in listUser)
+            {
+                string xml = user.ToXML();
+                byte[] data = Encoding.UTF8.GetBytes(xml);
+                stream.Write(data, 0, data.Length);
+                Console.WriteLine($"Sent: Name:{user.name} Designation: {user.designation}");
 
-            //for sending messages
-
-            byte[] messageSent = ListToByte(listUser);
-            sender.Send(messageSent);
-            
-           
-
-            //for recieving message
-            byte[] messageRecieved = new byte[1024];
-            int byteRecieve = sender.Receive(messageRecieved);
-            var mStream = new MemoryStream(byteRecieve);
-            Console.WriteLine($"Recived Message: {Encoding.ASCII.GetString(messageRecieved, 0, byteRecieve)}");
-
-            sender.Shutdown(SocketShutdown.Both);
-            Console.ReadKey();
-            sender.Close();
+                Thread.Sleep(1000); // Delay for clarity
+                Console.ReadKey();
+            }
         }
+    }
 
-        catch (ArgumentException e)
+    catch (ArgumentException e)
         {
             Console.WriteLine(e);
         }
@@ -61,29 +51,3 @@ static void ClientServer()
             Console.WriteLine(e);
         }
     }
-    catch(Exception e)
-    {
-        Console.WriteLine(e);
-    }
-}
-
-static byte[] ListToByte(List<Users> users)
-{
-    MemoryStream memoryStream = new MemoryStream();
-    BinaryWriter writer = new BinaryWriter(memoryStream);
-    using (memoryStream)
-    {
-
-    }
-    using (writer)
-    {
-        writer.Write(users.Count);
-        foreach(var user in users)
-        {
-            writer.Write(user.name);
-            writer.Write(user.designation);
-
-        }
-        return memoryStream.ToArray();
-    }
-}
